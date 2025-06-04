@@ -15,3 +15,6 @@ django-celery-results
 requests
 flower
 django-celery-beat
+gunicorn
+debugpy
+python-dotenv

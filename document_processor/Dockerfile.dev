@@ -1,0 +1,28 @@
+FROM python:3.9
+
+ENV PYTHONUNBUFFERED 1
+ENV DJANGO_ENV=dev
+
+RUN mkdir app
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    netcat-traditional \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements/base.txt /app/
+COPY requirements/dev.txt /app/
+RUN pip install -r dev.txt
+
+# Copy project files
+COPY . /app/
+
+# Make entrypoint script executable
+RUN chmod +x /app/entrypoint.dev.sh
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app 
