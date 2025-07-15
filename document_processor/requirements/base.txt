@@ -1,6 +1,10 @@
 Django
 djangorestframework
+django-constance[redis]
+django-cors-headers
 django-redis
+django-user-agents
+drf-yasg
 celery
 markdownify
 openai
@@ -8,6 +12,7 @@ pdfminer
 pdfminer.six
 pdfplumber
 pika
+pillow
 psycopg2-binary
 PyMuPDF 
 pypdf
@@ -18,3 +23,4 @@ django-celery-beat
 gunicorn
 debugpy
 python-dotenv
+python-json-logger

@@ -17,6 +17,11 @@ COPY requirements/base.txt /app/
 COPY requirements/dev.txt /app/
 RUN pip install -r dev.txt
 
+# Create log directory and set permissions
+RUN mkdir -p /var/log/gunicorn && \
+    chown -R www-data:www-data /var/log/gunicorn && \
+    chmod -R 755 /var/log/gunicorn
+
 # Copy project files
 COPY . /app/
 

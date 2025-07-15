@@ -1,29 +1,22 @@
 -r base.txt
 
-Django
-djangorestframework
-django-redis
-celery
+django-debug-toolbar
+django-silk
 markdownify
 openai
 pdfminer
 pdfminer.six
 pdfplumber
 pika
-psycopg2-binary
 PyMuPDF 
 pypdf
-django-celery-results
-requests
-flower
-django-celery-beat
-gunicorn
-debugpy
 ipython
-django-debug-toolbar
+pylint
 pytest
 pytest-django
 black
 flake8
+ipdb
 isort
 coverage
+model-bakery

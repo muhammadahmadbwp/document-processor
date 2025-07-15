@@ -1,6 +1,8 @@
 services:
   nginx:
     image: nginx:latest
+    container_name: nginx_container
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
@@ -16,6 +18,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.dev
+    container_name: django_container
+    restart: unless-stopped
     entrypoint: ["/app/entrypoint.dev.sh"]
     volumes:
       - ./:/app
@@ -41,6 +45,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.dev
+    container_name: celery_container
+    restart: unless-stopped
     command: celery -A document_processor worker --loglevel=info
     volumes:
       - ./:/app
@@ -60,6 +66,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.dev
+    container_name: celery_beat_container
+    restart: unless-stopped
     command: bash -c "celery -A document_processor beat -l info"
     env_file:
       - ./env/dev/.env
@@ -75,6 +83,8 @@ services:
 
   db:
     image: postgres:latest
+    container_name: postgres_container
+    restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
     env_file:
@@ -86,7 +96,8 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: pgadmin
+    container_name: pgadmin_container
+    restart: unless-stopped
     env_file:
       - ./env/dev/.env
     ports:
@@ -98,6 +109,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: rabbitmq_container
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -115,6 +128,8 @@ services:
 
   redis:
     image: redis:latest
+    container_name: redis_container
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -126,6 +141,8 @@ services:
 
   redisinsight:
     image: redislabs/redisinsight:latest
+    container_name: redisinsight_container
+    restart: unless-stopped
     ports:
       - "5540:5540"
     volumes:
@@ -136,12 +153,13 @@ services:
       - pg-network
     depends_on:
       - redis
-    restart: unless-stopped
 
   flower:
     build:
       context: .
       dockerfile: ./Dockerfile.dev
+    container_name: flower_container
+    restart: unless-stopped
     command: celery -A document_processor flower --port=5555
     ports:
       - 5555:5555

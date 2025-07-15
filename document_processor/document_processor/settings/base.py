@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-load_dotenv(BASE_DIR / '.env')
-
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -15,11 +13,25 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'document_processor_app',
+]
+
+THIRD_PARTY_APPS = [
+    'corsheaders',
     'django_celery_results',
     'django_celery_beat',
     'rest_framework',
+    'django.contrib.humanize',
+    'drf_yasg',
+    'django_user_agents',
+    'constance',
 ]
+
+CUSTOM_APPS = [
+    'custom_middlewares',
+    'document_processor_app',
+]
+
+INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -29,7 +41,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'document_processor.middleware.ErrorHandlingMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'custom_middlewares.RequestAndErrorHandlingMiddleware.RequestAndErrorHandling',
 ]
 
 ROOT_URLCONF = 'document_processor.urls'
@@ -68,6 +81,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Database
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'document_processor'),
+        'USER': os.environ.get('POSTGRES_USER', 'user'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'password'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+    }
+}
+
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -94,6 +119,9 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
+# Celery settings
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672/')
+
 # Cache settings
 CACHES = {
     "default": {
@@ -108,53 +136,147 @@ CACHES = {
 # Celery beat settings
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
-CORS_ALLOW_CREDENTIALS = True
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
 
-# CSRF settings
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
+DEBUG_LOG_DIR = LOG_DIR / 'debug'
+DEBUG_LOG_DIR.mkdir(exist_ok=True)
+DEBUG_LOG_FILE = DEBUG_LOG_DIR / 'debug.log'
+
+
+INFO_LOG_DIR = LOG_DIR / 'info'
+INFO_LOG_DIR.mkdir(exist_ok=True)
+INFO_LOG_FILE = INFO_LOG_DIR / 'info.log'
+
+ERROR_LOG_DIR = LOG_DIR / 'error'
+ERROR_LOG_DIR.mkdir(exist_ok=True)
+ERROR_LOG_FILE = ERROR_LOG_DIR / 'error.log'
+
+WARNING_LOG_DIR = LOG_DIR / 'warning'
+WARNING_LOG_DIR.mkdir(exist_ok=True)
+WARNING_LOG_FILE = WARNING_LOG_DIR / 'warning.log'
+
+CRITICAL_LOG_DIR = LOG_DIR / 'critical'
+CRITICAL_LOG_DIR.mkdir(exist_ok=True)
+CRITICAL_LOG_FILE = CRITICAL_LOG_DIR / 'critical.log'
+
+CELERY_LOG_DIR = LOG_DIR / 'celery'
 
 # Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'request_id': {
+            '()': 'custom_middlewares.log_filters.RequestIDFilter',
+        },
+    },
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{asctime} {levelname} {name} {module} {filename}:{funcName}:{lineno} [request_id:{request_id}] PID:{process:d} TID:{thread:d} {message}',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
             'style': '{',
         },
         'simple': {
             'format': '{levelname} {message}',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
             'style': '{',
         },
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'format': '%(asctime)s %(levelname)s %(name)s %(module)s %(filename)s %(funcName)s %(lineno)d %(request_id)s %(process)d %(thread)d %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+            'style': '%'
+        }
     },
     'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+        'debug_logger': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'when': 'midnight',
+            'filename': str(DEBUG_LOG_FILE),
+            'interval': 1,
+            'backupCount': 5,
             'formatter': 'verbose',
+            'filters': ['request_id']
+        },
+        'info_logger': {
+            'level': 'INFO',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'when': 'midnight',
+            'filename': str(INFO_LOG_FILE),
+            'interval': 1,
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'filters': ['request_id']
+        },
+        'error_logger': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'when': 'midnight',
+            'filename': str(ERROR_LOG_FILE),
+            'interval': 1,
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'filters': ['request_id']
+        },
+        'warning_logger': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'when': 'midnight',
+            'filename': str(WARNING_LOG_FILE),
+            'interval': 1,
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'filters': ['request_id']
+        },
+        'critical_logger': {
+            'level': 'CRITICAL',
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'when': 'midnight',
+            'filename': str(CRITICAL_LOG_FILE),
+            'interval': 1,
+            'backupCount': 5,
+            'formatter': 'verbose',
+            'filters': ['request_id']
         },
         'console': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+            'filters': ['request_id']
         },
     },
     'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
+        '': {
+            'handlers': ['console', 'debug_logger', 'info_logger', 'error_logger', 'warning_logger', 'critical_logger'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'debug_logger': {
+            'handlers': ['debug_logger'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'info_logger': {
+            'handlers': ['info_logger'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
-        'document_processor': {
-            'handlers': ['file', 'console'],
+        'error_logger': {
+            'handlers': ['error_logger'],
             'level': 'ERROR',
-            'propagate': True,
+            'propagate': False,
         },
-    },
+        'warning_logger': {
+            'handlers': ['warning_logger'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'critical_logger': {
+            'handlers': ['critical_logger'],
+            'level': 'CRITICAL',
+            'propagate': False,
+        }
+    }
 }
-
-# Create logs directory if it doesn't exist
-os.makedirs(os.path.join(BASE_DIR, 'logs'), exist_ok=True) 

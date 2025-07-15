@@ -11,9 +11,12 @@ worker_connections = 1000
 timeout = 30
 keepalive = 2
 
+max_requests = 100
+max_requests_jitter = 10
+
 # Logging
-accesslog = '-'
-errorlog = '-'
+accesslog = '/var/log/gunicorn/access.log'
+errorlog = '/var/log/gunicorn/error.log'
 loglevel = 'info'
 
 # Process naming
