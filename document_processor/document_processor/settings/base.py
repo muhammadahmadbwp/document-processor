@@ -29,6 +29,7 @@ THIRD_PARTY_APPS = [
 CUSTOM_APPS = [
     'custom_middlewares',
     'document_processor_app',
+    'diagnostics',
 ]
 
 INSTALLED_APPS = INSTALLED_APPS + THIRD_PARTY_APPS + CUSTOM_APPS
