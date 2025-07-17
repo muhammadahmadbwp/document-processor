@@ -1,82 +1,307 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <title>Document Processor - Diagnostics</title>
-        <style>
-            body {
-                font-family: Arial, Helvetica, sans-serif;
-                margin: 20px;
-                line-height: 1.6;
-                background-color: #f8f9fa;
-            }
-            h1 {
-                color: #343a40;
-            }
-            h2 {
-                margin-top: 0;
-                color: #495057;
-            }
-            p {
-                color: #6c757d;
-            }
-            .test-section {
-                margin-bottom: 20px;
-                padding: 15px;
-                border: 1px solid #ced4da;
-                border-radius: 5px;
-                background-color: #ffffff;
-            }
-            .test-button {
-                padding: 10px 15px;
-                background-color: #007bff;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-            }
-            .test-button:hover {
-                background-color: #0056b3;
-            }
-            .test-result {
-                margin-top: 10px;
-                padding: 10px;
-                background-color: #f5f5f5;
-                border-radius: 5px;
-                white-space: pre-wrap;
-                max-height: 300px;
-                overflow: auto;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>Document Processor - Diagnostics Dashboard</h1>
-
-        <div class="test-section">
-            <h2>API Connectivity</h2>
-            <button class="test-button" onclick="runTest('connectivity_check')">Run Connectivity Check</button>
-            <div class="test-result" id="connectivity_check-result"></div>
+<html>
+<head>
+    <title>Document Processor Diagnostics</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        h1 { color: #333; }
+        h2 { margin-top: 0; color: #444; }
+        .test-section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .test-button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; margin-bottom: 5px; }
+        .test-button:hover { background-color: #45a049; }
+        .result { margin-top: 10px; padding: 10px; background-color: #f5f5f5; border-radius: 4px; white-space: pre-wrap; max-height: 300px; overflow: auto; }
+        .task-status { margin-top: 10px; }
+        .status-success { color: green; }
+        .status-error { color: red; }
+        .status-pending { color: orange; }
+        .log-file { margin-bottom: 5px; cursor: pointer; color: #0066cc; }
+        .log-file:hover { text-decoration: underline; }
+        .tabs { display: flex; margin-bottom: 10px; }
+        .tab { padding: 8px 15px; cursor: pointer; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; margin-right: 5px; }
+        .tab.active { background-color: #f5f5f5; font-weight: bold; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        input[type="text"] { padding: 8px; width: 300px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Document Processor Diagnostics Dashboard</h1>
+    
+    <div class="test-section">
+        <h2>API Connectivity</h2>
+        <button class="test-button" onclick="runTest('connectivity')">Test Connectivity</button>
+        <div id="connectivity-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Logging</h2>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('logging', 'basic')">Basic Test</div>
+            <div class="tab" onclick="switchTab('logging', 'config')">Configuration</div>
+            <div class="tab" onclick="switchTab('logging', 'levels')">Test All Levels</div>
+            <div class="tab" onclick="switchTab('logging', 'files')">Log Files</div>
         </div>
-
-        <script>
-            function runTest(testName) {
-                const resultDiv = document.getElementById(`${testName}-result`);
-                resultDiv.innerHTML = 'Running test...';
-
-                fetch(`connectivity_check/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            resultDiv.innerHTML = `<p style="color: green;">${data.message}</p>`;
-                        } else {
-                            resultDiv.innerHTML = `<p style="color: red;">${data.message}</p>`;
-                        }
-                    })
-                    .catch(error => {
-                        resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-                    });
+        
+        <div id="logging-basic" class="tab-content active">
+            <button class="test-button" onclick="runTest('logging')">Test Basic Logging</button>
+            <div id="logging-result" class="result"></div>
+        </div>
+        
+        <div id="logging-config" class="tab-content">
+            <button class="test-button" onclick="runTest('logging/config')">Get Logging Configuration</button>
+            <div id="logging-config-result" class="result"></div>
+        </div>
+        
+        <div id="logging-levels" class="tab-content">
+            <button class="test-button" onclick="runTest('logging/test-all-levels')">Test All Log Levels</button>
+            <div id="logging-test-all-levels-result" class="result"></div>
+        </div>
+        
+        <div id="logging-files" class="tab-content">
+            <button class="test-button" onclick="getLogFiles()">List Log Files</button>
+            <div id="log-files-list"></div>
+            <div id="log-file-content" class="result"></div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Celery</h2>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('celery', 'basic')">Basic Test</div>
+            <div class="tab" onclick="switchTab('celery', 'tasks')">Task Tests</div>
+            <div class="tab" onclick="switchTab('celery', 'status')">Task Status</div>
+        </div>
+        
+        <div id="celery-basic" class="tab-content active">
+            <button class="test-button" onclick="runTest('celery')">Test Basic Celery</button>
+            <div id="celery-result" class="result"></div>
+        </div>
+        
+        <div id="celery-tasks" class="tab-content">
+            <button class="test-button" onclick="runTest('celery/test-success')">Test Success Task</button>
+            <button class="test-button" onclick="runTest('celery/test-retry')">Test Retry Task</button>
+            <button class="test-button" onclick="runTest('celery/test-failure')">Test Failure Task</button>
+            <button class="test-button" onclick="runTest('celery/test-long')">Test Long Task</button>
+            <div id="celery-tasks-result" class="result"></div>
+            <div id="task-actions" style="margin-top: 10px; display: none;">
+                <button class="test-button" onclick="revokeTask()">Revoke Task</button>
+            </div>
+        </div>
+        
+        <div id="celery-status" class="tab-content">
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="task-id-input" placeholder="Enter Task ID">
+                <button class="test-button" onclick="checkTaskStatus()">Check Status</button>
+            </div>
+            <div id="celery-status-result" class="result"></div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Cache</h2>
+        <button class="test-button" onclick="runTest('cache')">Test Cache</button>
+        <div id="cache-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Middleware</h2>
+        <button class="test-button" onclick="runTest('middleware')">Test Middleware</button>
+        <div id="middleware-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>System Info</h2>
+        <button class="test-button" onclick="runTest('system-info')">Get System Info</button>
+        <div id="system-info-result" class="result"></div>
+    </div>
+    
+    <script>
+        // Store the current task ID for potential revocation
+        let currentTaskId = null;
+        
+        function runTest(testName) {
+            // Determine which result element to use
+            let resultElementId;
+            
+            if (testName.startsWith('celery/test-')) {
+                // For Celery task tests, use the general tasks result element
+                resultElementId = 'celery-tasks-result';
+            } else if (testName === 'celery/task-status') {
+                resultElementId = 'celery-status-result';
+            } else {
+                resultElementId = `${testName.replace('/', '-')}-result`;
             }
-            </script>
-
-    </body>
-
+            
+            const resultElement = document.getElementById(resultElementId);
+            if (!resultElement) {
+                console.error(`No result element found for ${testName} (looking for ID: ${resultElementId})`);
+                return;
+            }
+            
+            resultElement.textContent = 'Loading...';
+            
+            fetch(`/diagnostics/${testName}/`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                    
+                    // For Celery task tests, store the task ID
+                    if (testName.startsWith('celery/test-')) {
+                        currentTaskId = data.task_id;
+                        document.getElementById('task-actions').style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    resultElement.textContent = `Error: ${error.message}`;
+                    console.error('API request failed:', error);
+                });
+        }
+        
+        function switchTab(section, tabName) {
+            // Hide all tab contents for this section
+            const tabContents = document.querySelectorAll(`#${section}-basic, #${section}-config, #${section}-levels, #${section}-files, #${section}-tasks, #${section}-status`);
+            tabContents.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            const selectedTab = document.getElementById(`${section}-${tabName}`);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Update tab styling
+            const sectionElement = document.querySelector(`.test-section:has(#${section}-${tabName})`);
+            if (sectionElement) {
+                const tabs = sectionElement.querySelectorAll('.tab');
+                tabs.forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Find the clicked tab
+                const clickedTab = Array.from(tabs).find(tab => 
+                    tab.textContent.trim().toLowerCase().includes(tabName.toLowerCase())
+                );
+                
+                if (clickedTab) {
+                    clickedTab.classList.add('active');
+                }
+            }
+        }
+        
+        function getLogFiles() {
+            const listElement = document.getElementById('log-files-list');
+            listElement.innerHTML = 'Loading log files...';
+            
+            fetch('/diagnostics/logging/config/')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const logFiles = data.log_files;
+                    if (!logFiles || Object.keys(logFiles).length === 0) {
+                        listElement.innerHTML = 'No log files found.';
+                        return;
+                    }
+                    
+                    let html = '<ul>';
+                    for (const [path, info] of Object.entries(logFiles)) {
+                        html += `<li class="log-file" onclick="viewLogFile('${path}')">${path} (${info.size_human})</li>`;
+                    }
+                    html += '</ul>';
+                    listElement.innerHTML = html;
+                })
+                .catch(error => {
+                    listElement.innerHTML = `Error: ${error.message}`;
+                    console.error('API request failed:', error);
+                });
+        }
+        
+        function viewLogFile(path) {
+            const contentElement = document.getElementById('log-file-content');
+            contentElement.textContent = `Loading ${path}...`;
+            
+            fetch(`/diagnostics/logging/view-log-file/?path=${encodeURIComponent(path)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    contentElement.textContent = data;
+                })
+                .catch(error => {
+                    contentElement.textContent = `Error: ${error.message}`;
+                    console.error('API request failed:', error);
+                });
+        }
+        
+        function revokeTask() {
+            if (!currentTaskId) {
+                alert('No task ID available. Please run a task test first.');
+                return;
+            }
+            
+            const resultElement = document.getElementById('celery-tasks-result');
+            resultElement.textContent = `Revoking task ${currentTaskId}...`;
+            
+            fetch(`/diagnostics/celery/revoke-task/?task_id=${currentTaskId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    resultElement.textContent = `Error: ${error.message}`;
+                    console.error('API request failed:', error);
+                });
+        }
+        
+        function checkTaskStatus() {
+            const taskId = document.getElementById('task-id-input').value.trim();
+            if (!taskId) {
+                alert('Please enter a task ID');
+                return;
+            }
+            
+            const resultElement = document.getElementById('celery-status-result');
+            resultElement.textContent = `Checking status of task ${taskId}...`;
+            
+            fetch(`/diagnostics/celery/task-status/?task_id=${taskId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    resultElement.textContent = `Error: ${error.message}`;
+                    console.error('API request failed:', error);
+                });
+        }
+        
+        // Initialize tabs
+        document.addEventListener('DOMContentLoaded', function() {
+            // Make sure the basic tabs are active by default
+            switchTab('logging', 'basic');
+            switchTab('celery', 'basic');
+        });
+    </script>
+</body>
 </html>
